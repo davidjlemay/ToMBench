@@ -154,20 +154,21 @@ if __name__ == "__main__":
     model = AutoModelForCausalLM.from_pretrained(args.model_name, trust_remote_code=True).half().cuda()
 
     model_name = args.model_name.split("/")[-1]
-    
-    files = os.listdir("./data")
+    data_path = f"{os.environ.get('SLURM_TMPDIR')}/data"
+    files = os.listdir(data_path)
+
     if args.task != "":
         files = [args.task]
     
     for file in files:
         task = file.split(".")[0]
-        with open(f"data/{file}", "r", encoding='utf-8') as f:
+        with open(f"{data_path}/{file}", "r", encoding='utf-8') as f:
             data = [json.loads(line) for line in f.readlines()]
         
         print(file)
         for i, d in tqdm(enumerate(data[:10])):
             for j in range(args.try_times):
-                if d['选项C'] != None:
+                if isinstance(d['选项C'], str):
                     maps, prompt = format_prompt_4(d, args)
                 else:
                     maps, prompt = format_prompt_2(d, args)
@@ -202,5 +203,5 @@ if __name__ == "__main__":
                 out['data'] = d
                 out['output'] = outputs
 
-                with open(f"./results/{task}_{model_name}_results.jsonl", "a+", encoding='utf-8') as f:
+                with open(f"{os.environ.get('SLURM_TMPDIR')}/results/{task}_{model_name}_results.jsonl", "a+", encoding='utf-8') as f:
                     f.write(json.dumps(out, ensure_ascii=False) + "\n")
