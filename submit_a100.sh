@@ -20,8 +20,8 @@ cleanup() {
     # Create tarball of any results that were generated
     if [ -d "${SLURM_TMPDIR}/results" ]; then
         echo "Archiving results from ${SLURM_TMPDIR}/results"
-        tar -czvf ${SLURM_TMPDIR}/results.tar.gz ${SLURM_TMPDIR}/results/*
-        rsync -a ${SLURM_TMPDIR}/results.tar.gz ${PWD}/results/
+        tar -czvf ${SLURM_TMPDIR}/results_${HOSTNAME}.${SLURM_JOB_ID}.tar.gz ${SLURM_TMPDIR}/results/*
+        rsync -a ${SLURM_TMPDIR}/results_${HOSTNAME}.${SLURM_JOB_ID}.tar.gz ${PWD}/results/
         echo "Outputs saved to ${PWD}/results/results.tar.gz"
     else
         echo "No results directory found at ${SLURM_TMPDIR}/results"
@@ -68,6 +68,6 @@ python run_huggingface.py \
     --try_times 5
 
 echo "Python script completed successfully. Archiving results..."
-tar -czvf ${SLURM_TMPDIR}/results.tar.gz ${SLURM_TMPDIR}/results/*
-rsync -a ${SLURM_TMPDIR}/results.tar.gz ${PWD}/results/
+tar -czvf ${SLURM_TMPDIR}/results_${HOSTNAME}.${SLURM_JOB_ID}.tar.gz ${SLURM_TMPDIR}/results/*
+rsync -a ${SLURM_TMPDIR}/results_${HOSTNAME}.${SLURM_JOB_ID}.tar.gz ${PWD}/results/
 echo "Job completed successfully!"

@@ -1,3 +1,4 @@
 torch==2.6.0+computecanada
 tqdm==4.67.1+computecanada
 transformers==4.51.3+computecanada
+vllm==0.8.5.post1+computecanada
