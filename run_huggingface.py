@@ -38,9 +38,9 @@ if __name__ == "__main__":
         for i, d in tqdm(enumerate(data[:10])):
             for j in range(args.try_times):
                 if isinstance(d['选项C'], str):
-                    maps, prompt = format_prompt_4(d, args)
+                    maps, prompt = format_prompt_4(d, args.language)
                 else:
-                    maps, prompt = format_prompt_2(d, args)
+                    maps, prompt = format_prompt_2(d, args.language)
                 
                 system_prompt = ""
                 if args.language == "zh":
@@ -58,7 +58,7 @@ if __name__ == "__main__":
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ]
-                gen_kwargs = {"max_length": 4096, "do_sample": False, "top_k": 1}
+                gen_kwargs = {"max_length": 1024, "do_sample": False, "top_k": 1}
                 inputs = tokenizer.apply_chat_template(messages, return_tensors="pt", tokenize=True, return_dict=True)
                 inputs = inputs.to(model.device)
                 outputs = model.generate(**inputs, **gen_kwargs)

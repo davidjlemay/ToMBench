@@ -168,10 +168,13 @@ def parse_args():
     parser.add_argument("--skip_processed", action="store_true", help="Skip already processed files")
     parser.add_argument("--num_rounds", type=int, default=1, help="Number of inference rounds to run")
     parser.add_argument("--run_id", type=str, default="", help="Optional identifier for this run")
+    parser.add_argument("--language", type=str, default="zh", help="Experiment language")
+    parser.add_argument("--cot", type=bool, default=False, help="Prompt chain-of-thought, not used with reasoning models")
+
     return parser.parse_args()
 
 
-def load_jsonl_files(input_dir: str, file_pattern: str, prompt_field: str) -> List[Tuple[str, List[InferenceItem]]]:
+def load_jsonl_files(input_dir: str, file_pattern: str, prompt_field: str, lang: str, cot: bool) -> List[Tuple[str, List[InferenceItem]]]:
     """Load all JSONL files and prepare inference items."""
     file_paths = glob.glob(os.path.join(input_dir, file_pattern))
     all_files_data = []
@@ -181,22 +184,22 @@ def load_jsonl_files(input_dir: str, file_pattern: str, prompt_field: str) -> Li
         items = []
         
         with open(file_path, 'r') as f:
-            for line_idx, line in enumerate(f):
+            for i, line in enumerate(f):
                 try:
-                    data = json.loads(line.strip())
+                    d = json.loads(line.strip())
                     if isinstance(d['选项C'], str):
-                        maps, prompt = format_prompt_4(d, args)
+                        maps, prompt = format_prompt_4(d, lang)
                     else:
-                        maps, prompt = format_prompt_2(d, args)
+                        maps, prompt = format_prompt_2(d, lang)
                 
                     system_prompt = ""
-                    if args.language == "zh":
-                        if args.cot == False:
+                    if lang == "zh":
+                        if cot == False:
                             system_prompt = SystemEvaluatePrompt_zh
                         else:
                             system_prompt = SystemEvaluatePrompt_zh_cot
                     else:
-                        if args.cot == False:
+                        if cot == False:
                             system_prompt = SystemEvaluatePrompt_en
                         else:
                             system_prompt = SystemEvaluatePrompt_en_cot
@@ -205,19 +208,18 @@ def load_jsonl_files(input_dir: str, file_pattern: str, prompt_field: str) -> Li
                         prompt = [
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": prompt}
-                        ]
+                        ],
                         metadata={
                           'idx': i,
-                          'number': j,
                           'answer': d['答案\nANSWER'],
                           'map': maps,
                           'data': d
-                          }
+                        },
                         source_file=file_name,
-                        line_idx=line_idx
+                        line_idx=i
                     ))
                 except json.JSONDecodeError:
-                    logger.warning(f"Invalid JSON at line {line_idx + 1} in {file_path}")
+                    logger.warning(f"Invalid JSON at line {i + 1} in {file_path}")
                     continue
         
         all_files_data.append((file_name, items))
@@ -388,7 +390,7 @@ def main():
     
     # Load all JSONL files
     logger.info(f"Loading JSONL files from {args.input_dir}")
-    all_files_data = load_jsonl_files(args.input_dir, args.file_pattern, args.prompt_field)
+    all_files_data = load_jsonl_files(args.input_dir, args.file_pattern, args.prompt_field, args.language, args.cot)
     
     # Run inference for specified number of rounds
     for round_idx in range(args.num_rounds):

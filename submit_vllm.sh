@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --account=def-gdumas85
 #SBATCH --nodes 1
-#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks=1
 #SBATCH --gres=gpu:a100:1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=16G
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=64G
 #SBATCH --time=10:00:00
 #SBATCH --mail-user=davidjlemay@gmail.com
 #SBATCH --mail-type=END
@@ -51,21 +51,43 @@ pip install --no-index --upgrade pip
 pip install --no-index -r requirements_cc.txt
 
 
-#export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512,expandable_segments:True
-# Don't restrict to GPU 0 - use both GPUs
-# export CUDA_VISIBLE_DEVICES=0,1  # Let the code handle this instead
-
-#export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
-
 cp -R /home/dlemay/projects/def-gdumas85/dlemay/ToMBench/data $SLURM_TMPDIR/data
 mkdir $SLURM_TMPDIR/results
 
-python run_huggingface.py \
-    --task "" \
-    --model_name "Qwen/Qwen3-4B" \
-    --language "en" \
-    --cot False \
-    --try_times 10
+# Set environment variables for better performance
+export OMP_NUM_THREADS=16
+export MKL_NUM_THREADS=16
+
+# Print system information
+echo "=== System Information ==="
+echo "Running on node: $(hostname)"
+echo "CUDA devices: $(nvidia-smi --list-gpus)"
+echo "CPU cores: $(nproc)"
+echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
+
+# Monitor GPU utilization in the background
+(nvidia-smi --query-gpu=utilization.gpu,utilization.memory,memory.used,memory.total --format=csv -l 60 > $SLURM_TMPDIR/results/gpu_stats_${SLURM_JOB_ID}.csv) &
+NVIDIA_SMI_PID=$!
+
+# Run the inference script
+python run_vllm.py \
+  --model_path "Qwen/Qwen3-1.7B" \
+  --input_dir $SLURM_TMPDIR/data \
+  --output_dir "./results" \
+  --batch_size 32 \
+  --prompt_field "STORY" \
+  --max_tokens 512 \
+  --temperature 0.7 \
+  --checkpoint_interval 50 \
+  --file_pattern "*.jsonl" \
+  --num_rounds 10 \
+  --run_id "Qwen/Qwen3-1.7B" \
+  --skip_processed \
+  --language "en" \
+  --cot false
+
+# Kill the background monitoring process
+kill $NVIDIA_SMI_PID
 
 echo "Python script completed successfully. Archiving results..."
 tar -czvf ${SLURM_TMPDIR}/results_${HOSTNAME}.${SLURM_JOB_ID}.tar.gz ${SLURM_TMPDIR}/results/*

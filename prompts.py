@@ -1,3 +1,5 @@
+import random
+
 SystemEvaluatePrompt_zh = \
 """下面给你提供一段故事，一个问题和若干答案选项，请你根据故事内容和给定的问题，按照常理推测，选择一个最可能的答案选项，并输出答案序号。
 注意：
@@ -82,8 +84,8 @@ A. {choice_a}
 B. {choice_b}"""
 
 
-def format_prompt_4(d, args):
-    if args.language == 'zh':
+def format_prompt_4(d, language):
+    if language == 'zh':
         cA = d['选项A'].replace("A. ", "")
         cB = d['选项B'].replace("B. ", "")
         cC = d['选项C'].replace("C. ", "")
@@ -176,8 +178,8 @@ def format_prompt_4(d, args):
     return map, prompt
 
 
-def format_prompt_2(d, args):
-    if args.language == 'zh':
+def format_prompt_2(d, language):
+    if language == 'zh':
         cA = d['选项A'].replace("A. ", "")
         cB = d['选项B'].replace("B. ", "")
         choices = [cA, cB]
