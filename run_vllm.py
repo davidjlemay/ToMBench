@@ -229,8 +229,9 @@ def load_jsonl_files(input_dir: str, file_pattern: str, prompt_field: str, lang:
 
 def run_inference(model: LLM, batch: List[InferenceItem], sampling_params: SamplingParams) -> List[InferenceItem]:
     """Run inference on a batch of items."""
-    prompts = [item.prompt for item in batch]
-    
+    # Convert chat prompts to Qwen string format
+    prompts = [format_prompt_for_qwen(item.prompt) for item in batch]
+
     # Measure inference time
     start_time = time.time()
     outputs = model.generate(prompts, sampling_params)
@@ -247,8 +248,6 @@ def run_inference(model: LLM, batch: List[InferenceItem], sampling_params: Sampl
 
 def save_results(tracker: BatchInferenceTracker, output_dir: str, round_idx: int = 0, run_id: str = "") -> None:
     """Save results to output files, preserving original structure."""
-    # Create base output directory
-    os.makedirs(output_dir, exist_ok=True)
     
     # Create round-specific directory if multiple rounds
     round_suffix = f"_round{round_idx}" if round_idx > 0 else ""
@@ -276,6 +275,22 @@ def format_time(seconds: float) -> str:
     minutes, seconds = divmod(remainder, 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
+def format_prompt_for_qwen(chat_prompt):
+    """Convert a chat format prompt to a string format for Qwen models."""
+    result = ""
+    
+    for message in chat_prompt:
+        if message["role"] == "system":
+            result += f"<|im_start|>system\n{message['content']}<|im_end|>\n"
+        elif message["role"] == "user":
+            result += f"<|im_start|>user\n{message['content']}<|im_end|>\n"
+        elif message["role"] == "assistant":
+            result += f"<|im_start|>assistant\n{message['content']}<|im_end|>\n"
+    
+    # Add the assistant prefix for the response
+    result += "<|im_start|>assistant\n"
+    
+    return result
 
 def run_inference_round(
     model: LLM, 
@@ -383,7 +398,7 @@ def main():
     logger.info(f"Initializing vLLM with model: {args.model_path}")
     model = LLM(
         model=args.model_path,
-        tensor_parallel_size=1,  # Using a single GPU
+        tensor_parallel_size=2,  # number of GPUs
         gpu_memory_utilization=0.9,
         max_num_batched_tokens=8192
     )
